@@ -1,0 +1,21 @@
+<input>
+  
+  <general>
+   <spin> 1 </spin>
+   <electron na='1' nb='1' />
+  </general>
+
+  <block>
+      <morse alp='1.04' de='0.1744' re='1.401' nvib='6'  />
+    <space ne='2' imo='0' fmo='0' />
+  </block>
+
+  <block>
+      <morse alp='0.72' de='0.1026' re='2.0' nvib='4'  />
+      morse alp='1.04' de='0.1744' re='1.401' nvib='6'  />
+      <space ne='1' imo='0' fmo='0' />
+      <space ne='1' imo='18' fmo='18' />
+  </block>
+
+</input>
+
