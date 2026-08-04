@@ -13,7 +13,6 @@ def process_xml_csf(finp):
        results (list): List of CSFs
    """
    results = []
-   potlist = []
    doc = minidom.parse(finp)
 
    # General info
@@ -28,13 +27,6 @@ def process_xml_csf(finp):
 
    for block in blocks:
        spaces = block.getElementsByTagName('space')
-       morse = block.getElementsByTagName('morse')
-       for m in morse:
-        alp = float(m.getAttribute("alp"))
-        de = float(m.getAttribute("de"))
-        re = float(m.getAttribute("re"))
-        nvib = int(m.getAttribute("nvib"))
-       pot = [alp,re,de,nvib]
        seqs = []
        occspace = []
 
@@ -83,17 +75,11 @@ def process_xml_csf(finp):
 
            if spin == 3 and unp == []:
                continue
-           #print(spin,p,unp)
            csfs = getCSF(spin, p, unp)
            for csf in csfs:
-            #print(csf)
             results.append(csf)
-            potlist.append(pot)
-   #print('nico',len(results))
-   #print('nico',len(potlist))
-   #sys.exit()
 
-   return results, potlist
+   return results
 
 if __name__ == "__main__":
  # Example test case

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import numpy as np
 import sys
 import os
@@ -18,13 +19,14 @@ if __name__ == "__main__":
     pdir = pathlib.Path().resolve()
     sys.path.append(pdir)
     input_script = sys.argv[1]
+    shutil.copy(input_script, input_script+'.py')
     inp = importlib.import_module(input_script)
     # Copy all names from the module into the global namespace
     globals().update(vars(inp))
 
     # Create a directory name with a timestamp
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    run_dir = f"run_{timestamp}"
+    run_dir = f"{sys.argv[1]}_{timestamp}"
     os.makedirs(run_dir, exist_ok=True)
 
     input_script_copy = os.path.join(run_dir, input_script+'.py')
@@ -63,8 +65,6 @@ if __name__ == "__main__":
     nmo = ntmo + npmo
     smo = np.block([[tmo, np.zeros((ntmo, npmo))], [np.zeros((npmo, ntmo)), pmo]])
 
-
-    #NICO: TO BE DONE RM MORSE FROM CSFS
     # --- Franck-Condon Factors ---
     # Get atomic masses
     masses = tmol.atom_mass_list()
@@ -77,18 +77,8 @@ if __name__ == "__main__":
     print()
     print('Target reduced mass : ',mass)
 
-    csfs, morse_p = process_xml_csf(xmlfile)
+    csfs = process_xml_csf(xmlfile)
     ncsfs = len(csfs)
-    evib, mat_fcf = compute_fcf(morse_p, mass)
-
-    if len(sys.argv)>2 and sys.argv[2]=='0' :
-      # Create a directory to store CSV files
-      os.makedirs("fcf_csv_files", exist_ok=True)
-      for i in range(len(mat_fcf)):
-        for j in range(len(mat_fcf[i])):
-          fcf = mat_fcf[j][i]
-          filename = f"fcf_csv_files/fcf_j{j}_i{i}.csv"
-          np.savetxt(filename, fcf, delimiter=" ", fmt="%.6f", header=f"FCF for (j={j}, i={i}), shape: {fcf.shape}")
 
     nep_csf = []
     for csf in csfs:
@@ -117,10 +107,50 @@ if __name__ == "__main__":
         diagonal_mask = np.eye(hmat.shape[0], dtype=bool)
         hmat = hmat * diagonal_mask
 
-    eig, eigv = np.linalg.eig(hmat)
-    #NICO: TO BE DONE SORT IN ENERGY, SELECT THE ELEC. STATES TO INCLUDE AND ASSIGN THEM A MORSE POT
-    print()
-    print_asymp_eig(eig,eigv,csfs,morse_p,evib)
+    fulleig, fulleigv = np.linalg.eig(hmat)
+    idx = fulleig.argsort()[::-1]
+    fulleig = fulleig[idx]
+    fulleigv = fulleigv[:,idx]
+    print_asymp_elec_eig(fulleig,fulleigv,csfs)
+
+    if len(sys.argv)>2 and sys.argv[2]=='-1' :
+     sys.exit()
+
+    n_elec_sta, eig, eigv, morse_p = select_sta(fulleig,fulleigv,sta_list)
+    if not any(len(t) == 0 for t in sta_list.values()):
+      evib, mat_fcf = compute_fcf(morse_p, mass)
+    else: #fixed nuclei approximation
+      print('Vibration DOF disabled, Fixed Nuclei Approximation.')
+      evib = np.zeros((n_elec_sta,1))
+      mat_fcf = [[None for _ in range(n_elec_sta)] for _ in range(n_elec_sta)]
+      morse_p = []
+      for i in range(n_elec_sta):
+        morse_p.append([0.,0.,0.,1])
+        for j in range(n_elec_sta):
+          mat_fcf[j][i] = [[1.0]]
+        #mat_fcf[i][i] = [[1.0]]
+
+      mat_fcf = np.array(mat_fcf)
+
+    if len(sys.argv)>2 and sys.argv[2]=='0' :
+      # Create a directory to store CSV files
+      os.makedirs("fcf_csv_files", exist_ok=True)
+      for i in range(len(mat_fcf)):
+        for j in range(len(mat_fcf[i])):
+          fcf = mat_fcf[j][i]
+          filename = f"fcf_csv_files/fcf_j{j}_i{i}.csv"
+          np.savetxt(filename, fcf, delimiter=" ", fmt="%.6f", header=f"FCF for (j={j}, i={i})")
+
+    print_asymp_eig(eig,eigv,morse_p,evib)
+
+    sta_file = os.path.join(run_dir, "sta")
+    fsta = open(sta_file,"w")
+    nsta = len(eig)
+    for i in range(n_elec_sta):
+      n_vib_i = morse_p[i][3]
+      for j in range(n_vib_i):
+          print(i, j, eig[i].real+evib[i][j], eig[i].real, evib[i][j],file=fsta)
+    fsta.close()
 
     print("Asymptotic energies computed.")
     print()
@@ -133,7 +163,7 @@ if __name__ == "__main__":
     n_vib_total = sum(p[3] for p in morse_p)
     vib_indices = []
     start = 0
-    for i in range(ncsfs):
+    for i in range(n_elec_sta):
         n_vib_i = morse_p[i][3]
         vib_indices.append((start, start + n_vib_i))
         start += n_vib_i
@@ -183,8 +213,8 @@ if __name__ == "__main__":
             matH, matS = cimat(ovmo, h1emo, r12mo, r12mo_antisym, ne, nmo, csfs, phase)
 
             # Transform to adiabatic basis
-            hmat = np.linalg.inv(eigv) @ matH @ eigv
-            smat = np.linalg.inv(eigv) @ matS @ eigv
+            hmat = np.transpose(eigv) @ matH @ eigv
+            smat = np.transpose(eigv) @ matS @ eigv
 
             # Build vibronic matrices
             hmatvib, smatvib = build_vibronic_matrices(hmat, smat, mat_fcf, evib, morse_p, vib_indices)

@@ -23,7 +23,7 @@ def cimat(ovmo, h1emo, r12mo, r12mo_antisym, ne, nmo, csfs, phase):
          c_phase = c * phase[i]
          # Precompute determinant object
          det = Sdeterminant(len(alp), len(bet), np.array(alp), np.array(bet))
-         csf_terms.append((c_phase, det))
+         csf_terms.append((c, c_phase, det))
      csf_data.append(csf_terms)
 
  # Optimized computation using precomputed data
@@ -33,13 +33,14 @@ def cimat(ovmo, h1emo, r12mo, r12mo_antisym, ne, nmo, csfs, phase):
         smat_val = 0.0 + 0.0j
 
         for j1 in range(len(csf1_data)):
-            c1_phase, det1 = csf1_data[j1]
+            c1, c1_phase, det1 = csf1_data[j1]
             for j2 in range(len(csf2_data)):
-                c2_phase, det2 = csf2_data[j2]
+                c2, c2_phase, det2 = csf2_data[j2]
 
                 ov, h1e, r12 = lowdin(ovmo, h1emo, r12mo, r12mo_antisym, det1, det2)
 
                 # Accumulate results
+                #hmat_val += c1_phase * np.conj(c2_phase) * h1e + c1 * np.conj(c2) * r12 # no ETF for r12 !!TEST!!
                 hmat_val += c1_phase * np.conj(c2_phase) * (h1e + r12)
                 smat_val += c1_phase * np.conj(c2_phase) * ov
 

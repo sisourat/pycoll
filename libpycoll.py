@@ -55,10 +55,9 @@ def compute_orbitals(mol, orb_type, **kwargs):
 
 def compute_fcf(morse_p, mass):
     """Compute Franck-Condon factors for all pairs of CSFs."""
-    ncsfs = len(morse_p)
-    # store the FC factors between all CSFs for later use
-    mat_fcf = [[None for _ in range(ncsfs)] for _ in range(ncsfs)]
-    evib = [None for _ in range(ncsfs)]
+    nsta = len(morse_p)
+    mat_fcf = [[None for _ in range(nsta)] for _ in range(nsta)]
+    evib = [None for _ in range(nsta)]
     for i1, p1 in enumerate(morse_p):
         for i2, p2 in enumerate(morse_p):
            if i2 >= i1:
@@ -67,30 +66,61 @@ def compute_fcf(morse_p, mass):
 
     return evib, mat_fcf
 
-def print_asymp_eig(eig,eigv,csfs,morse_p,evib):
-   # Get the absolute values of the eigenvectors
-   abs_eigv = np.abs(eigv)
-   # Find the index of the largest component for each eigenvector (column)
-   largest_component_indices = np.argmax(abs_eigv, axis=0)
-   # Find the values of the largest components
-   largest_component_values = abs_eigv[largest_component_indices, range(eigv.shape[1])]
+def print_asymp_eig(eig,eigv,morse_p,evib):
 
    nsta = len(eig)
    ncsfs = len(eig)
 
    k = 0
+   print()
    for i in range(nsta):
-     _, alpe, betae =  csfs[largest_component_indices[i]].terms[0]
      print('Electronic state ',i , eig[i])
-     for j in range(ncsfs):
-      if(np.abs(eigv[j,i].real)>0.3):
-       print("  ",j, eigv[j,i].real, csfs[j])
      n_vib_i = morse_p[i][3]
      print('        Vibronic states')
      for j in range(n_vib_i):
          print("       ",k, eig[i].real+evib[i][j], eig[i].real, evib[i][j])
          k+=1
      print()
+
+def print_asymp_elec_eig(eig,eigv,csfs):
+    # Get the absolute values of the eigenvectors
+    abs_eigv = np.abs(eigv)
+    # Find the index of the largest component for each eigenvector (column)
+    largest_component_indices = np.argmax(abs_eigv, axis=0)
+    # Find the values of the largest components
+    largest_component_values = abs_eigv[largest_component_indices, range(eigv.shape[1])]
+
+    nsta = len(eig)
+    ncsfs = len(eig)
+
+    k = 0
+    for i in range(nsta):
+      _, alpe, betae =  csfs[largest_component_indices[i]].terms[0]
+      print('Electronic state ',i , eig[i])
+      for j in range(ncsfs):
+       if(np.abs(eigv[j,i].real)>0.3):
+        print("  ",j, eigv[j,i].real, csfs[j])
+      print()
+
+
+def select_sta(fulleig,fulleigv,sta_list):
+
+    # Extract the keys from the dictionary
+    selected_states = list(sta_list.keys())
+
+    # Select the corresponding columns from eigv
+    eigv = fulleigv[:, selected_states]
+    eig = fulleig[selected_states]
+
+    nsta = len(eig)
+    morse_p = [[None for i in range(3)] for j in range(nsta)]
+    k=0
+    for i in selected_states:
+      morse_p[k][:] = sta_list[i]
+      k+=1
+
+    # prepare the list of Morse parameter
+    return nsta, eig, eigv, morse_p
 
 
 # --- Collision Dynamics ---

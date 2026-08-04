@@ -1,5 +1,7 @@
 import sys
 import numpy as np
+import os
+import time
 
 from pyscf import gto, scf, ao2mo, lo, dft
 from pyscf import lib
@@ -225,11 +227,18 @@ def hcore_modpot_erf(alp, coef, center, mol, mo):
 def twoeints(mol,mo):
     """ Compute the two electron integrals in MO basis """
 
-# saves the two-electron integrals in the file ftmp.name
-    ao2mo.kernel(mol, mo, erifile = 'hf.h5', dataname = 'test')
-# load 2e integrals by filename and dataname
-    with ao2mo.load('hf.h5', 'test') as eri:
+    timestamp = int(time.time() * 1000)  # Milliseconds for more uniqueness
+    filename = f'hf_{timestamp}.h5'
+
+    # saves the two-electron integrals in the file ftmp.name
+    ao2mo.kernel(mol, mo, erifile = filename, dataname = 'test')
+    # load 2e integrals by filename and dataname
+    with ao2mo.load(filename, 'test') as eri:
       erimo = ao2mo.restore(1, np.asarray(eri), mo.shape[1])
+
+    # Delete the file after loading the integrals
+    if os.path.exists(filename):
+        os.remove(filename)
 
     return erimo
 
