@@ -246,8 +246,8 @@ if __name__ == "__main__":
             ovmo = ovmo.astype(np.complex128)  # Convert to complex
             kin = kin.astype(np.complex128)  # Convert to complex
 
-            kin[0:ntmo,ntmo:nmo] -= vproj**2*ovmo[0:ntmo,ntmo:nmo]
-            kin[0:ntmo,ntmo:nmo] += 2.0*1j*vproj*deriv_z[0:ntmo,ntmo:nmo]
+            kin[0:ntmo,ntmo:nmo] += 0.5*vproj**2*ovmo[0:ntmo,ntmo:nmo]
+            kin[0:ntmo,ntmo:nmo] -= 1j*vproj*deriv_z[0:ntmo,ntmo:nmo]
 
             h1emo = kin + pot
             # --- Apply phase to 1-electron matrices (h1emo and ovmo) ---
