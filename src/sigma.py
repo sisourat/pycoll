@@ -29,12 +29,14 @@ for i in range(nsta):
  print(k,'   ', int(eindex[i]),int(vindex[i]),esta[i],'     ',sig[i])
  k+=1
 
-print()
+#print(np.sum(sig[:])-sig[0])
+#sys.exit()
 sexc = np.sum(sig[1:5])
 scapt = np.sum(sig[5:])
 #s2s = np.sum(sig[12:18])
 #s2p = np.sum(sig[18:])
-print('Tot',sexc,scapt)#2s,s2p)
+print('EXC',sexc,'SEC',scapt)#2s,s2p)
+sys.exit()
 print()
 for i in range(nsta):
  print(i,sig[i]/scapt)

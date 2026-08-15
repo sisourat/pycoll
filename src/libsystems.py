@@ -195,7 +195,9 @@ def hcore(mol, mo):
    kin = mo.T @ T @ mo
    T = mol.intor('int1e_nuc')
    pot = mo.T @ T @ mo
-   return ovl, kin, pot
+   T = mol.intor('int1e_ipovlp')[2]
+   deriv_z = mo.T @ T @ mo
+   return ovl, kin, pot, deriv_z
 
 def hcore_modpot(alp, coef, center, power, mol, mo):
    """ Computes the one-electron terms for given mol and mo """
@@ -205,7 +207,9 @@ def hcore_modpot(alp, coef, center, power, mol, mo):
    kin = mo.T @ T @ mo
    T = compute_model_potential(mol, alp, coef, center, power)
    pot = mo.T @ T @ mo
-   return ovl, kin, pot
+   T = mol.intor('int1e_ipovlp', comp=2)
+   deriv_z = mo.T @ T @ mo
+   return ovl, kin, pot, deriv_z
 
 def hcore_modpot_erf(alp, coef, center, mol, mo):
    """ Computes the one-electron terms for given mol and mo """
@@ -214,6 +218,8 @@ def hcore_modpot_erf(alp, coef, center, mol, mo):
    ovl = mo.T @ T @ mo
    T = mol.intor('int1e_kin')  # Kinetic energy
    kin = mo.T @ T @ mo
+   T = mol.intor('int1e_ipovlp', comp=2)
+   deriv_z = mo.T @ T @ mo
 
    T = 0.0
    for i, a in enumerate(alp):
@@ -221,7 +227,7 @@ def hcore_modpot_erf(alp, coef, center, mol, mo):
        T += coef[i]*mol.intor('int1e_rinv')
    pot = mo.T @ T @ mo
 
-   return ovl, kin, pot
+   return ovl, kin, pot, deriv_z
 
 
 def twoeints(mol,mo):

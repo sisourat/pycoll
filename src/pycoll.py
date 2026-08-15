@@ -103,11 +103,11 @@ if __name__ == "__main__":
 
     # --- Asymptotic Energies ---
     if orb == "modpot":
-        ovmo, kin, pot = hcore_modpot(np.concatenate((talp, palp)), np.concatenate((tcoef, pcoef)), np.concatenate((tcenter, [[0, 0, -10000.00]] * len(pcenter))), np.concatenate((tpower, ppower)), mol, smo)
+        ovmo, kin, pot, deriv_z = hcore_modpot(np.concatenate((talp, palp)), np.concatenate((tcoef, pcoef)), np.concatenate((tcenter, [[0, 0, -10000.00]] * len(pcenter))), np.concatenate((tpower, ppower)), mol, smo)
     elif orb == "modpot_erf":
-        ovmo, kin, pot = hcore_modpot_erf(np.concatenate((talp, palp)), np.concatenate((tcoef, pcoef)), np.concatenate((tcenter, [[0, 0, -10000.00]] * len(pcenter))), mol, smo)
+        ovmo, kin, pot, deriv_z = hcore_modpot_erf(np.concatenate((talp, palp)), np.concatenate((tcoef, pcoef)), np.concatenate((tcenter, [[0, 0, -10000.00]] * len(pcenter))), mol, smo)
     elif orb == "HF":
-        ovmo, kin, pot = hcore(mol, smo)
+        ovmo, kin, pot, deriv_z = hcore(mol, smo)
     else:
         raise NotImplementedError("Only HF or modpot orbitals are implemented.")
 
@@ -200,33 +200,59 @@ if __name__ == "__main__":
             spower = np.concatenate((tpower, ppower), axis=0)
 
             if orb == "modpot":
-                ovmo, kin, pot = hcore_modpot(salp, scoef, scenter, spower, mol, smo)
+                ovmo, kin, pot, deriv_z = hcore_modpot(salp, scoef, scenter, spower, mol, smo)
             elif orb == "modpot_erf":
-                ovmo, kin, pot = hcore_modpot_erf(salp, scoef, scenter, mol, smo)
+                ovmo, kin, pot, deriv_z = hcore_modpot_erf(salp, scoef, scenter, mol, smo)
             elif orb == "HF":
-                ovmo, kin, pot = hcore(mol, smo)
+                ovmo, kin, pot, deriv_z = hcore(mol, smo)
             else:
                 raise NotImplementedError("Only HF or modpot orbitals are implemented.")
 
             r12mo = twoeints(mol, smo)
             r12mo = r12mo.astype(np.complex128)  # Convert to complex
 
-            phase = np.exp(+vproj*zproj*1.0j)*np.exp(-0.5*vproj**2*time*1.0j)
-            r12mo[:, :, :, ntmo:nmo] *= phase  # σ is pmo
-            r12mo[:, :, ntmo:nmo, :] *= np.conj(phase)  # λ is pmo
-            r12mo[:, ntmo:nmo, :, :] *= phase  # ν is pmo
-            r12mo[ntmo:nmo, :, :, :] *= np.conj(phase)  # μ is pmo
+            #dipole_z = mol.intor('int1e_r')[2]  # Dipole integrals (z-component)
+            #dipole_z_mo = np.dot(smo.T.conj(), np.dot(dipole_z, smo))
+            #z_mo = np.abs(dipole_z_mo)*np.sign(zproj)#/(np.abs(ovmo)+1e-12)**0.5
+
+            phase_matrix = np.zeros((nmo, nmo), dtype=np.complex128)
+            phase_matrix[0:ntmo, 0:ntmo] = 1.0  # tmo-tmo: phase = 1
+            phase_matrix[ntmo:nmo, ntmo:nmo] = 1.0  # pmo-pmo: phase = 1
+
+            # Fill off-diagonal blocks (tmo-pmo pairs)
+            for i in range(ntmo):
+              for j in range(ntmo, nmo):
+                 phase_ij = np.exp(+vproj * zproj * 1.0j) * np.exp(-0.5 * vproj**2 * time * 1.0j)
+                 #phase_ij = np.exp(+vproj * z_mo[j,i] * 1.0j) * np.exp(-0.5 * vproj**2 * time * 1.0j)
+                 phase_matrix[i, j] = phase_ij
+                 phase_matrix[j, i] = np.conj(phase_ij)  # Ensure Hermitian symmetry
+
+            #phase = np.exp(+vproj*zproj*1.0j)*np.exp(-0.5*vproj**2*time*1.0j)
+            #r12mo[:, :, :, ntmo:nmo] *= phase  # σ is pmo
+            #r12mo[:, :, ntmo:nmo, :] *= np.conj(phase)  # λ is pmo
+            #r12mo[:, ntmo:nmo, :, :] *= phase  # ν is pmo
+            #r12mo[ntmo:nmo, :, :, :] *= np.conj(phase)  # μ is pmo
+
+            # Reshape phase_matrix for (μ, ν) and (λ, σ)
+            phase_mu_nu = phase_matrix.reshape(nmo, nmo, 1, 1)  # For (μ, ν)
+            phase_la_sigma = phase_matrix.reshape(1, 1, nmo, nmo)  # For (λ, σ)
+
+            # Apply phase factors to r12mo
+            r12mo *= phase_mu_nu * phase_la_sigma
 
             r12mo_antisym = r12mo - r12mo.transpose(0, 2, 1, 3)
 
-            h1emo = kin + pot
-
             h1emo = h1emo.astype(np.complex128)  # Convert to complex
             ovmo = ovmo.astype(np.complex128)  # Convert to complex
-            h1emo[:,ntmo:nmo] = h1emo[:,ntmo:nmo]*phase
-            h1emo[ntmo:nmo,:] = h1emo[ntmo:nmo,:]*np.conj(phase)
-            ovmo[:,ntmo:nmo] = ovmo[:,ntmo:nmo]*phase
-            ovmo[ntmo:nmo,:] = ovmo[ntmo:nmo,:]*np.conj(phase)
+            kin = kin.astype(np.complex128)  # Convert to complex
+
+            kin[0:ntmo,ntmo:nmo] -= vproj**2*ovmo[0:ntmo,ntmo:nmo]
+            kin[0:ntmo,ntmo:nmo] += 2.0*1j*vproj*deriv_z[0:ntmo,ntmo:nmo]
+
+            h1emo = kin + pot
+            # --- Apply phase to 1-electron matrices (h1emo and ovmo) ---
+            h1emo[:,:] *= phase_matrix[:,:]
+            ovmo[:,:] *= phase_matrix[:,:]
 
             matH, matS = cimat(ovmo, h1emo, r12mo, r12mo_antisym, ne, nmo, csfs)
 
@@ -236,7 +262,6 @@ if __name__ == "__main__":
 
             # Build vibronic matrices
             hmatvib, smatvib = build_vibronic_matrices(hmat, smat, mat_fcf, evib, morse_p, vib_indices)
-            #print(zproj,*hmatvib)
 
             # Solve for this zproj
             inv_smatvib = np.linalg.inv(smatvib)
