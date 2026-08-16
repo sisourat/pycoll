@@ -94,13 +94,6 @@ if __name__ == "__main__":
     csfs = process_xml_csf(xmlfile)
     ncsfs = len(csfs)
 
-    nep_csf = []
-    for csf in csfs:
-       _, alpe, betae = csf.terms[0]
-       nte = int(np.count_nonzero(np.array(alpe)<ntmo) + np.count_nonzero(np.array(betae)<ntmo))
-       npe = len(alpe)+len(betae)-nte
-       nep_csf.append(npe)
-
     # --- Asymptotic Energies ---
     if orb == "modpot":
         ovmo, kin, pot, deriv_z = hcore_modpot(np.concatenate((talp, palp)), np.concatenate((tcoef, pcoef)), np.concatenate((tcenter, [[0, 0, -10000.00]] * len(pcenter))), np.concatenate((tpower, ppower)), mol, smo)
@@ -213,7 +206,8 @@ if __name__ == "__main__":
 
             #dipole_z = mol.intor('int1e_r')[2]  # Dipole integrals (z-component)
             #dipole_z_mo = np.dot(smo.T.conj(), np.dot(dipole_z, smo))
-            #z_mo = np.abs(dipole_z_mo)*np.sign(zproj)#/(np.abs(ovmo)+1e-12)**0.5
+            #z_mo = zproj*(1.0-ovmo)   #np.abs(dipole_z_mo)*np.sign(zproj)#/(np.abs(ovmo)+1e-12)
+            #print(f"{zproj:.4f} {' '.join(f'{val:.4f}' for val in z_mo[0, ntmo:])}")
 
             phase_matrix = np.zeros((nmo, nmo), dtype=np.complex128)
             phase_matrix[0:ntmo, 0:ntmo] = 1.0  # tmo-tmo: phase = 1
@@ -244,13 +238,15 @@ if __name__ == "__main__":
 
             h1emo = h1emo.astype(np.complex128)  # Convert to complex
             ovmo = ovmo.astype(np.complex128)  # Convert to complex
-            kin = kin.astype(np.complex128)  # Convert to complex
-
-            kin[0:ntmo,ntmo:nmo] += 0.5*vproj**2*ovmo[0:ntmo,ntmo:nmo]
-            kin[0:ntmo,ntmo:nmo] -= 1j*vproj*deriv_z[0:ntmo,ntmo:nmo]
 
             h1emo = kin + pot
+
             # --- Apply phase to 1-electron matrices (h1emo and ovmo) ---
+            #h1emo[:,ntmo:nmo] *= phase
+            #h1emo[ntmo:nmo,:] *= np.conj(phase)
+            #ovmo[:,ntmo:nmo] *= phase
+            #ovmo[ntmo:nmo,:] *= np.conj(phase)
+
             h1emo[:,:] *= phase_matrix[:,:]
             ovmo[:,:] *= phase_matrix[:,:]
 
