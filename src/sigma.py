@@ -29,10 +29,10 @@ for i in range(nsta):
  print(k,'   ', int(eindex[i]),int(vindex[i]),esta[i],'     ',sig[i])
  k+=1
 
-#print(np.sum(sig[:])-sig[0])
+#print(np.sum(sig[:])-sig[126])
 #sys.exit()
-sexc = np.sum(sig[1:5])
-scapt = np.sum(sig[5:])
+sexc = np.sum(sig[1:8])
+scapt = np.sum(sig[8:])
 #s2s = np.sum(sig[12:18])
 #s2p = np.sum(sig[18:])
 print('EXC',sexc,'SEC',scapt)#2s,s2p)

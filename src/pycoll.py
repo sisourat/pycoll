@@ -99,7 +99,7 @@ if __name__ == "__main__":
         ovmo, kin, pot, deriv_z = hcore_modpot(np.concatenate((talp, palp)), np.concatenate((tcoef, pcoef)), np.concatenate((tcenter, [[0, 0, -10000.00]] * len(pcenter))), np.concatenate((tpower, ppower)), mol, smo)
     elif orb == "modpot_erf":
         ovmo, kin, pot, deriv_z = hcore_modpot_erf(np.concatenate((talp, palp)), np.concatenate((tcoef, pcoef)), np.concatenate((tcenter, [[0, 0, -10000.00]] * len(pcenter))), mol, smo)
-    elif orb == "HF":
+    elif orb == "HF" or orb == "HF_ETF":
         ovmo, kin, pot, deriv_z = hcore(mol, smo)
     else:
         raise NotImplementedError("Only HF or modpot orbitals are implemented.")
@@ -198,8 +198,12 @@ if __name__ == "__main__":
                 ovmo, kin, pot, deriv_z = hcore_modpot_erf(salp, scoef, scenter, mol, smo)
             elif orb == "HF":
                 ovmo, kin, pot, deriv_z = hcore(mol, smo)
+            elif orb == "HF_ETF":
+                ovmo, kin, pot, deriv_z = hcore_ETF(mol, smo, ntmo, npmo, vproj)
             else:
                 raise NotImplementedError("Only HF or modpot orbitals are implemented.")
+
+            #print(zproj,kin[0,10],kin[10,0])
 
             r12mo = twoeints(mol, smo)
             r12mo = r12mo.astype(np.complex128)  # Convert to complex
@@ -210,16 +214,22 @@ if __name__ == "__main__":
             #print(f"{zproj:.4f} {' '.join(f'{val:.4f}' for val in z_mo[0, ntmo:])}")
 
             phase_matrix = np.zeros((nmo, nmo), dtype=np.complex128)
+            phase_time = np.zeros((nmo, nmo), dtype=np.complex128)
             phase_matrix[0:ntmo, 0:ntmo] = 1.0  # tmo-tmo: phase = 1
             phase_matrix[ntmo:nmo, ntmo:nmo] = 1.0  # pmo-pmo: phase = 1
+            phase_time[0:ntmo, 0:ntmo] = 1.0  # tmo-tmo: phase = 1
+            phase_time[ntmo:nmo, ntmo:nmo] = 1.0  # pmo-pmo: phase = 1
 
             # Fill off-diagonal blocks (tmo-pmo pairs)
             for i in range(ntmo):
               for j in range(ntmo, nmo):
-                 phase_ij = np.exp(+vproj * zproj * 1.0j) * np.exp(-0.5 * vproj**2 * time * 1.0j)
+                 phase_ij = np.exp(-vproj * zproj * 1.0j) * np.exp(+0.5 * vproj**2 * time * 1.0j)
+                 phase_time_ij = np.exp(-0.5 * vproj**2 * time * 1.0j)
                  #phase_ij = np.exp(+vproj * z_mo[j,i] * 1.0j) * np.exp(-0.5 * vproj**2 * time * 1.0j)
                  phase_matrix[i, j] = phase_ij
                  phase_matrix[j, i] = np.conj(phase_ij)  # Ensure Hermitian symmetry
+                 phase_time[i, j] = phase_time_ij
+                 phase_time[j, i] = np.conj(phase_time_ij)  # Ensure Hermitian symmetry
 
             #phase = np.exp(+vproj*zproj*1.0j)*np.exp(-0.5*vproj**2*time*1.0j)
             #r12mo[:, :, :, ntmo:nmo] *= phase  # σ is pmo
@@ -236,19 +246,28 @@ if __name__ == "__main__":
 
             r12mo_antisym = r12mo - r12mo.transpose(0, 2, 1, 3)
 
-            h1emo = h1emo.astype(np.complex128)  # Convert to complex
-            ovmo = ovmo.astype(np.complex128)  # Convert to complex
-
-            h1emo = kin + pot
-
             # --- Apply phase to 1-electron matrices (h1emo and ovmo) ---
             #h1emo[:,ntmo:nmo] *= phase
             #h1emo[ntmo:nmo,:] *= np.conj(phase)
             #ovmo[:,ntmo:nmo] *= phase
             #ovmo[ntmo:nmo,:] *= np.conj(phase)
 
-            h1emo[:,:] *= phase_matrix[:,:]
-            ovmo[:,:] *= phase_matrix[:,:]
+            ovmo = ovmo.astype(np.complex128)  # Convert to complex
+            kin = kin.astype(np.complex128)  # Convert to complex
+            pot = pot.astype(np.complex128)  # Convert to complex
+            if not orb == "HF_ETF":
+               h1emo = kin + pot
+               h1emo[:,:] *= phase_matrix[:,:]
+               ovmo[:,:] *= phase_matrix[:,:]
+            else:
+               #h1emo = kin*phase_matrix[:,:] + pot*phase_time[:,:]
+               h1emo = kin + pot
+               h1emo[:,:] *= phase_time[:,:]
+               ovmo[:,:] *= phase_time[:,:]
+            #print(zproj,h1emo[0,9].real,h1emo[0,9].imag,ovmo[0,9].real,ovmo[0,9].imag)
+
+               #h1emo[:,:] *= phase_matrix[:,:]
+               #ovmo[:,:] *= phase_matrix[:,:]
 
             matH, matS = cimat(ovmo, h1emo, r12mo, r12mo_antisym, ne, nmo, csfs)
 

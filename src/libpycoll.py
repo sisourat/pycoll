@@ -44,7 +44,7 @@ def compute_orbitals(mol, orb_type, **kwargs):
         mo, mo_e = modpot_system(mol, **kwargs)
     elif orb_type == "modpot_erf":
         mo, mo_e = modpot_erf_system(mol, **kwargs)
-    elif orb_type == "HF":
+    elif orb_type == "HF" or "HF_ETF":
         mo, mo_e = system(mol, debug=kwargs.get("debug", False))
     else:
         raise NotImplementedError("Only HF or modpot orbitals are implemented.")
