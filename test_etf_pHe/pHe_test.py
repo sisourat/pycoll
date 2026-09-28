@@ -39,8 +39,8 @@ ngrid = 100
 gridtype = 'exp'  #lin or exp
 vproj = 0.6
 bmin =  0.2
-bmax =  3.2
-nbb = 6
+bmax =  6.2
+nbb = 12
 
 xmlfile = 'csfs.xml'
 # sta index: alp, re, de, nvib

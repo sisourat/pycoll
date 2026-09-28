@@ -4,7 +4,7 @@ analyze = False
 nodiag = False
 nstep_analysis = 10
 
-orb =  "HF_ETF"  # HF or modpot or modpot_erf
+orb =  "HF"  # HF or modpot or modpot_erf
 ne = 2
 
 tbasis = {'He': 'aug-cc-pvdz' }
@@ -37,7 +37,7 @@ dtime = 0.05
 zmax = 60.0
 ngrid = 100
 gridtype = 'exp'  #lin or exp
-vproj = 0.6
+vproj = 0.4
 bmin =  0.2
 bmax =  6.2
 nbb = 12

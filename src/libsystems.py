@@ -278,7 +278,7 @@ def compute_laplacian(vproj, ntmo, npmo, mo_values, coords, neighbors_list):
                 A[k, 4] = dx ** 2
                 A[k, 5] = dy ** 2
                 A[k, 6] = dz ** 2
-                b[k] = mo_values[j, p] * np.exp(1j*vproj*coords[i,2])  # Use the neighbor's MO value
+                b[k] = mo_values[j, p] * np.exp(-1j*vproj*coords[i,2])  # Use the neighbor's MO value
                 k += 1
 
             # Solve the normal equations: coeffs = (A^T A)^-1 A^T b
@@ -299,7 +299,7 @@ def compute_laplacian(vproj, ntmo, npmo, mo_values, coords, neighbors_list):
 def ints_ETF(mo_value, neighbors_list, grid, weights, coul_pot, ntmo, npmo, vproj):
    #vproj = 0.0
    nmo = ntmo + npmo
-   phase = np.exp(1j*vproj*grid[:,2])
+   phase = np.exp(-1j*vproj*grid[:,2])
    ovl = np.zeros((nmo, nmo), dtype=np.complex128)
    pot = np.zeros((nmo, nmo), dtype=np.complex128)
    kin = np.zeros((nmo, nmo), dtype=np.complex128)

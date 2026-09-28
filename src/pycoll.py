@@ -224,7 +224,7 @@ if __name__ == "__main__":
             for i in range(ntmo):
               for j in range(ntmo, nmo):
                  phase_ij = np.exp(-vproj * zproj * 1.0j) * np.exp(+0.5 * vproj**2 * time * 1.0j)
-                 phase_time_ij = np.exp(-0.5 * vproj**2 * time * 1.0j)
+                 phase_time_ij = np.exp(+0.5 * vproj**2 * time * 1.0j)
                  #phase_ij = np.exp(+vproj * z_mo[j,i] * 1.0j) * np.exp(-0.5 * vproj**2 * time * 1.0j)
                  phase_matrix[i, j] = phase_ij
                  phase_matrix[j, i] = np.conj(phase_ij)  # Ensure Hermitian symmetry
@@ -237,14 +237,6 @@ if __name__ == "__main__":
             #r12mo[:, ntmo:nmo, :, :] *= phase  # ν is pmo
             #r12mo[ntmo:nmo, :, :, :] *= np.conj(phase)  # μ is pmo
 
-            # Reshape phase_matrix for (μ, ν) and (λ, σ)
-            phase_mu_nu = phase_matrix.reshape(nmo, nmo, 1, 1)  # For (μ, ν)
-            phase_la_sigma = phase_matrix.reshape(1, 1, nmo, nmo)  # For (λ, σ)
-
-            # Apply phase factors to r12mo
-            r12mo *= phase_mu_nu * phase_la_sigma
-
-            r12mo_antisym = r12mo - r12mo.transpose(0, 2, 1, 3)
 
             # --- Apply phase to 1-electron matrices (h1emo and ovmo) ---
             #h1emo[:,ntmo:nmo] *= phase
@@ -259,21 +251,31 @@ if __name__ == "__main__":
                h1emo = kin + pot
                h1emo[:,:] *= phase_matrix[:,:]
                ovmo[:,:] *= phase_matrix[:,:]
+               # Reshape phase_matrix for (μ, ν) and (λ, σ)
+               phase_mu_nu = phase_matrix.reshape(nmo, nmo, 1, 1)  # For (μ, ν)
+               phase_la_sigma = phase_matrix.reshape(1, 1, nmo, nmo)  # For (λ, σ)
             else:
                #h1emo = kin*phase_matrix[:,:] + pot*phase_time[:,:]
                h1emo = kin + pot
                h1emo[:,:] *= phase_time[:,:]
                ovmo[:,:] *= phase_time[:,:]
-            #print(zproj,h1emo[0,9].real,h1emo[0,9].imag,ovmo[0,9].real,ovmo[0,9].imag)
-
+               phase_mu_nu = phase_time.reshape(nmo, nmo, 1, 1)  # For (μ, ν)
+               phase_la_sigma = phase_time.reshape(1, 1, nmo, nmo)  # For (λ, σ)
                #h1emo[:,:] *= phase_matrix[:,:]
                #ovmo[:,:] *= phase_matrix[:,:]
+
+            # Apply phase factors to r12mo
+            r12mo *= phase_mu_nu * phase_la_sigma
+            r12mo_antisym = r12mo - r12mo.transpose(0, 2, 1, 3)
+
 
             matH, matS = cimat(ovmo, h1emo, r12mo, r12mo_antisym, ne, nmo, csfs)
 
             # Transform to adiabatic basis
             hmat = np.transpose(eigv) @ matH @ eigv
             smat = np.transpose(eigv) @ matS @ eigv
+            #print(zproj,hmat[0,1].real,hmat[0,1].imag,smat[0,1].real,smat[0,1].imag)
+
 
             # Build vibronic matrices
             hmatvib, smatvib = build_vibronic_matrices(hmat, smat, mat_fcf, evib, morse_p, vib_indices)

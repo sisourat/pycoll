@@ -4,7 +4,7 @@ analyze = False
 nodiag = False
 nstep_analysis = 10
 
-orb =  "HF_ETF"  # HF or modpot or modpot_erf
+orb =  "HF"  # HF or modpot or modpot_erf
 ne = 2
 
 tbasis = {'He': 'aug-cc-pvdz' }
